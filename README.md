@@ -1,74 +1,189 @@
-<!-- fallback_TradeBlock_20260207083553_96144 -->
+# Polymarket Arbitrage Bot
 
-# TradeBlock: TradeFlow Orchestrator: Scalable Real-time Data Pipelining and Visualization Manager Implementation
-> Advanced javascript solution leveraging modern architecture patterns and cutting-edge technology.
+> Automated trading bot for detecting and executing arbitrage opportunities on Polymarket binary markets (UP/DOWN 15-minute markets).
 
-TradeFlow Orchestrator: Scalable Real-time Data Pipelining and Visualization Manager. implementing modern High-availability patterns featuring High-availability capabilities.
+[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-blue.svg)](https://github.com/vladmeeros/polymarket-arbitrage-bot)
 
-TradeBlock is designed to provide developers and professionals with a robust, efficient, and scalable solution for their javascript development needs. This implementation focuses on performance, maintainability, and ease of use, incorporating industry best practices and modern software architecture patterns.
+## Table of Contents
 
-The primary purpose of TradeBlock is to streamline development workflows and enhance productivity through innovative features and comprehensive functionality. Whether you're building enterprise applications, data processing pipelines, or interactive systems, TradeBlock provides the foundation you need for successful project implementation.
+- [Features](#features)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [How It Works](#how-it-works)
+- [Project Structure](#project-structure)
+- [Safety & Disclaimer](#safety--disclaimer)
 
-TradeBlock's key benefits include:
+## Features
 
-* **High-performance architecture**: Leveraging optimized algorithms and efficient data structures for maximum performance.
-* **Modern development patterns**: Implementing contemporary software engineering practices and design patterns.
-* **Comprehensive testing**: Extensive test coverage ensuring reliability and maintainability.
+- **Real-time Arbitrage Detection**: Monitors orderbooks via WebSocket to detect when `UP + DOWN < $1.00`
+- **Batch Order Execution**: Sends both orders simultaneously in a single API request
+- **Gasless Trading**: Optional gasless trading support via Builder API
+- **Market Monitoring**: Read-only monitoring tool for flash crashes and arbitrage opportunities
+- **Risk Management**: Configurable trade limits, cooldown periods, and price buffers
+- **Multi-Market Support**: Trade across BTC, ETH, SOL, XRP markets
 
-# Key Features
+## Installation
 
-* **Modern ES6+ JavaScript features**: Advanced implementation with optimized performance and comprehensive error handling.
-* **Asynchronous programming patterns**: Advanced implementation with optimized performance and comprehensive error handling.
-* **Modular component architecture**: Advanced implementation with optimized performance and comprehensive error handling.
-* **Cross-browser compatibility**: Advanced implementation with optimized performance and comprehensive error handling.
-* **Responsive design principles**: Advanced implementation with optimized performance and comprehensive error handling.
+```bash
+# Clone repository
+git clone https://github.com/vladmeeros/polymarket-arbitrage-bot.git
+cd polymarket-arbitrage-bot
 
-# Technology Stack
+# Install dependencies
+pip install -r requirements.txt
 
-* **Javascript**: Primary development language providing performance, reliability, and extensive ecosystem support.
-* **Modern tooling**: Utilizing contemporary development tools and frameworks for enhanced productivity.
-* **Testing frameworks**: Comprehensive testing infrastructure ensuring code quality and reliability.
+# Optional: Install official client libraries
+pip install py-clob-client py-builder-signing-sdk
+```
 
-# Installation
+## Configuration
 
-To install TradeBlock, follow these steps:
+Copy the example environment file and fill in your values:
 
-1. Clone the repository:
+```bash
+cp .env.example .env
+```
 
+Then edit `.env` with your actual configuration. See `.env.example` for all available options.
 
-2. Follow the installation instructions in the documentation for your specific environment.
+```env
+# Required
+POLY_PRIVATE_KEY=your_private_key_here
+POLY_PROXY_WALLET=0xYourSafeAddress
+# or
+POLY_SAFE_ADDRESS=0xYourSafeAddress
 
-# Configuration
+# Optional - Gasless Trading
+POLY_BUILDER_API_KEY=your_builder_api_key
+POLY_BUILDER_API_SECRET=your_builder_api_secret
+POLY_BUILDER_API_PASSPHRASE=your_builder_passphrase
 
-TradeBlock supports various configuration options to customize behavior and optimize performance for your specific use case. Configuration can be managed through environment variables, configuration files, or programmatic settings.
+# Optional - CLOB Settings
+POLY_CLOB_HOST=https://clob.polymarket.com
+POLY_CLOB_CHAIN_ID=137
+```
 
-## # Configuration Options
+> **⚠️ Security**: Never commit your `.env` file to version control. The `.env.example` file is a template with all available configuration options.
 
-The following configuration parameters are available:
+## Usage
 
-* **Verbose Mode**: Enable detailed logging for debugging purposes
-* **Output Format**: Customize the output format (JSON, CSV, XML)
-* **Performance Settings**: Adjust memory usage and processing threads
-* **Network Settings**: Configure timeout and retry policies
+### Arbitrage Trading Bot
 
-# Contributing
+```bash
+# Basic usage (ETH market, $5 per side, $0.02 min spread)
+python apps/arb_runner.py
 
-Contributions to TradeBlock are welcome and appreciated! We value community input and encourage developers to help improve this project.
+# Custom parameters
+python apps/arb_runner.py --coin BTC --size 10 --spread 0.03 --cooldown 3
 
-## # How to Contribute
+# Full options
+python apps/arb_runner.py \
+  --coin ETH \
+  --size 5.0 \
+  --spread 0.02 \
+  --cooldown 5.0 \
+  --max-trades 10 \
+  --buffer 0.01
+```
 
-1. Fork the TradeBlock repository.
-2. Create a new branch for your feature or fix.
-3. Implement your changes, ensuring they adhere to the project's coding standards and guidelines.
-4. Submit a pull request, providing a detailed description of your changes.
+**Parameters:**
+- `--coin`: Market to trade (BTC, ETH, SOL, XRP) - default: ETH
+- `--size`: Trade size in USDC per side - default: 5.0
+- `--spread`: Minimum spread to trade ($) - default: 0.02
+- `--cooldown`: Seconds between trades - default: 5.0
+- `--max-trades`: Maximum trades per session - default: 10
+- `--buffer`: Price buffer above ask to ensure fill - default: 0.01
 
-## # Development Guidelines
+### Market Monitor (Read-Only)
 
-* Follow the existing code style and formatting conventions
-* Write comprehensive tests for new features
-* Update documentation when adding new functionality
-* Ensure all tests pass before submitting your pull request
+```bash
+# Basic monitoring
+python apps/monitor.py --coin ETH
 
-# License
+# Custom thresholds
+python apps/monitor.py --coin BTC --drop 0.25 --arb 0.03
+```
 
-This project is licensed under the MIT License. See the [LICENSE](https://github.com/szenled/TradeBlock/blob/main/LICENSE) file for details.
+**Parameters:**
+- `--coin`: Market to monitor (BTC, ETH, SOL, XRP)
+- `--drop`: Flash crash drop threshold - default: 0.30
+- `--arb`: Arbitrage threshold - default: 0.02
+
+## How It Works
+
+### Arbitrage Strategy
+
+In Polymarket binary markets, **UP + DOWN always pays $1.00** at settlement. When `best_ask(UP) + best_ask(DOWN) < $1.00`, buying both guarantees profit.
+
+**Example:**
+```
+UP ask:   $0.48
+DOWN ask: $0.49
+Total:    $0.97
+Profit:   $0.03 per pair (guaranteed $1.00 return)
+```
+
+### Execution Flow
+
+1. **Detection**: WebSocket monitors orderbooks in real-time
+2. **Validation**: Checks if spread meets minimum threshold
+3. **Batch Execution**: Creates and signs both orders, sends in single API request
+4. **Result Tracking**: Monitors fill status and calculates actual profit
+
+**Key Features:**
+- **Batch Orders**: Both UP and DOWN orders sent together for atomic execution
+- **Price Buffer**: Adds small premium above ask to increase fill probability
+- **Cooldown**: Prevents over-trading and reduces risk
+- **Max Trades**: Bankroll protection to limit exposure per session
+
+## Project Structure
+
+```
+polymarket-arbitrage-bot/
+├── apps/
+│   ├── arb_runner.py      # Main arbitrage trading bot
+│   ├── monitor.py         # Read-only market monitor
+│   └── orderbook_viewer.py
+├── lib/
+│   ├── market_manager.py  # Market and orderbook management
+│   ├── position_manager.py
+│   ├── price_tracker.py   # Price history and flash crash detection
+│   └── terminal_utils.py
+├── src/
+│   ├── bot.py             # Trading bot core
+│   ├── client.py          # CLOB API client (with batch support)
+│   ├── websocket_client.py # Real-time orderbook updates
+│   ├── signer.py          # Order signing and authentication
+│   └── utils.py
+└── requirements.txt
+```
+
+## Safety & Disclaimer
+
+### ⚠️ Important Warnings
+
+- **Test with small sizes first** - Always start with minimal trade sizes
+- **Ensure sufficient USDC balance** - Maintain adequate balance for trades and gas fees
+- **Monitor initial trades** - Closely watch the first few trades to verify execution
+- **Set appropriate limits** - Use `--max-trades` to limit exposure per session
+- **Use cooldown periods** - Prevent rapid-fire trading
+- **Understand the risks** - Trading involves financial risk; only trade what you can afford to lose
+
+### Disclaimer
+
+This software is provided "as is" without warranty. Trading cryptocurrencies and derivatives involves substantial risk of loss. The authors and contributors are not responsible for any financial losses. Use at your own risk.
+
+## Contributing
+
+Contributions are welcome! Please open an issue for major changes or submit a Pull Request.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+**Made with ❤️ for the Polymarket community**
